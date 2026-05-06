@@ -25,6 +25,11 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = UserSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        next_url = request.query_params.get('next', '/api/auth/login/')
+        accept_header = request.META.get('HTTP_ACCEPT', '')
+        wants_json = 'application/json' in accept_header
+        if not wants_json:
+            return redirect(next_url)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(

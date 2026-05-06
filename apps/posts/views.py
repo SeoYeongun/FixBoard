@@ -1,9 +1,13 @@
+from django.db.models import F
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework import status
 
 from apps.posts.models import Post
+from apps.comments.models import Comment
+from apps.comments.serializers import CommentSerializer
 from apps.posts.serializers import (
     PostListSerializer,
     PostDetailSerializer,
@@ -25,6 +29,8 @@ class PostViewSet(ModelViewSet):
             return PostListSerializer   # 목록용 (가벼움)
         elif self.action == 'retrieve':
             return PostDetailSerializer  # 상세용
+        elif self.action == 'comments':
+            return CommentSerializer  # 게시글 하위 댓글 조회/생성용
         elif self.action in ['create', 'update', 'partial_update']:
             return PostCreateSerializer  # 생성/수정용
         return PostDetailSerializer
@@ -38,11 +44,27 @@ class PostViewSet(ModelViewSet):
         instance.is_deleted = True
         instance.save()
 
-    # 커스텀 API (조회수 증가)
-    # POST /api/posts/{id}/view/
-    @action(detail=True, methods=['post'])
-    def view(self, request, pk=None):
+    # 상세 조회(GET) 시 작성자 본인을 제외하고 조회수 자동 증가
+    def retrieve(self, request, *args, **kwargs):
         post = self.get_object()
-        post.view_count += 1
-        post.save()
-        return Response({"message": "view count increased"})
+        if not (request.user.is_authenticated and request.user == post.author):
+            Post.objects.filter(pk=post.pk).update(view_count=F('view_count') + 1)
+            post.refresh_from_db(fields=['view_count'])
+
+        serializer = self.get_serializer(post)
+        return Response(serializer.data)
+
+    # GET/POST /api/posts/{id}/comments/
+    @action(detail=True, methods=['get', 'post'])
+    def comments(self, request, pk=None):
+        post = self.get_object()
+
+        if request.method == 'GET':
+            comments = Comment.objects.filter(post=post).select_related('user').order_by('created_at')
+            serializer = CommentSerializer(comments, many=True)
+            return Response(serializer.data)
+
+        serializer = CommentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user, post=post)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

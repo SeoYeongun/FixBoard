@@ -9,7 +9,7 @@ class PostListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         # 목록에서는 가볍게 필요한 정보만 반환 (성능 최적화)
-        fields = ['id', 'title', 'author', 'view_count', 'created_at']
+        fields = ['id', 'title', 'content', 'author', 'view_count', 'created_at']
 
 
 class PostDetailSerializer(serializers.ModelSerializer):
