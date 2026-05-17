@@ -5,3 +5,4 @@ router = DefaultRouter()
 router.register('', VoteViewSet, basename='vote')
 
 urlpatterns = router.urls
+

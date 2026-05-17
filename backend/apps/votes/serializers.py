@@ -17,3 +17,4 @@ class VoteCreateSerializer(serializers.ModelSerializer):
         model = Vote
         # user는 뷰에서 request.user로 주입
         fields = ["post", "vote_type"]
+        
